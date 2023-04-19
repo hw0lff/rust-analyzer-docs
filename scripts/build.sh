@@ -38,19 +38,28 @@ build_docs_all() {
     mkdir -p "$out"
     clone_ra
     cd "$ra"
+    local pids=()
 
     generate_index
 
+    echo "[$(date +%FT%T)] Gathering package.json"
     for tag in $(git tag); do
-        echo "$tag"
         mkdir -p "$build/$tag"
-        git show "$tag":editors/code/package.json > "$build/$tag/package.json"
+        git show "$tag":editors/code/package.json > "$build/$tag/package.json" &
+        pids+=("$!")
     done
+    wait "${pids[@]}"
 
+    local pids=()
+    echo "[$(date +%FT%T)] Generating markdown"
     for tag in $(git tag); do
         "$scripts/build-markdown.py" "$build/$tag/package.json" "$build/$tag/rendered.md" &
+        pids+=("$!")
     done
-    
+    wait "${pids[@]}"
+
+    local pids=()
+    echo "[$(date +%FT%T)] Rendering HTML"
     for tag in $(git tag); do
         mkdir -p "$out/$tag"
 
@@ -60,9 +69,14 @@ build_docs_all() {
             -o "$out/$tag/index.html"
         )
         pandoc "${pandoc_opts[@]}" "${pandoc_tag_opts[@]}" &
+        pids+=("$!")
     done
 
-    pandoc "${pandoc_opts[@]}" "$build/index.md" -o "$out/index.html"
+    pandoc "${pandoc_opts[@]}" "$build/index.md" -o "$out/index.html" &
+    pids+=("$!")
+
+    wait "${pids[@]}"
+    echo "[$(date +%FT%T)] All finished"
 }
 
 usage() {
