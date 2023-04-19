@@ -34,7 +34,6 @@ def render_enum_desc(key, o) -> str:
         out += "| :-- | :---  |\n"
 
         for a, b in zip(o.pop(e), o.pop(key)):
-            b = b.replace('|', '\|')
             out += f"| *{a}* | {b} |\n"
 
     return out
