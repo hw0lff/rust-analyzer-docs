@@ -12,7 +12,7 @@ jobs:
       - uses: actions/checkout@v3
       - uses: nikeee/setup-pandoc@v1
       - name: Build rust_analyzer html docs
-        run: ./scripts/build.sh all
+        run: RUNNER_TRACKING_ID="" && ./scripts/build.sh all
       - name: Upload html docs artifact
         uses: actions/upload-pages-artifact@v1
         with:
