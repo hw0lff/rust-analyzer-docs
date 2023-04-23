@@ -2,7 +2,7 @@ name: 'Automations for reference documentation of rust_analyzer configuration op
 on:
   workflow_dispatch:
   schedule:
-    - cron: '* 0,12 * * *'
+    - cron: '* 14 * * *'
   push:
     branches:
       - 'master'
