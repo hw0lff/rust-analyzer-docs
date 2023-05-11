@@ -63,6 +63,10 @@ def render_option(o: dict) -> str:
     if mi in o:
         out += f"**{mi}:** `{o.pop(mi)}`</br>\n"
 
+    ma = "maximum"
+    if ma in o:
+        out += f"**{ma}:** `{o.pop(ma)}`</br>\n"
+
     an = "anyOf"
     if an in o:
         out += f"**{an}:**\n```\n"
