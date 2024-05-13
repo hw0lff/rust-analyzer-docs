@@ -11,6 +11,7 @@ pandoc_opts=(
     --standalone
     --from markdown --to html
     --metadata title='Reference Documentation for Rust Analyzer Options'
+    --metadata maxwidth='55em'
     --template "$repo_dir/pandoc.html.template"
     -V "date-meta=$(date +%F)"
 )
