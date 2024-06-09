@@ -114,20 +114,19 @@ class PropertyFormatter:
         attrs = filter(lambda attr: not attr.startswith("__"), dir(prop))
         attrs = filter(lambda attr: not callable(getattr(prop, attr)), attrs)
         attrs = filter(lambda attr: attr not in self.formatted_attrs, attrs)
-        attrs = map(lambda attr: tuple([attr, getattr(prop,attr)]), attrs)
+        attrs = map(lambda attr: tuple([attr, getattr(prop, attr)]), attrs)
         attrs = filter(lambda t: t[1] is not None, attrs)
-        attrs = list(attrs)
+
         # remaining keys
+        attrs = list(attrs)
         if len(attrs) == 0:
             return
-
+        # table head
         self.md += "\n"
         self.md += "| key | value |"
         self.md += "| :-- | :---  |"
-
+        # table body
         for attr, value in attrs:
-            print(type(attr), type(value))
-            print(attr, value)
             self.formatted_attrs.add(attr)
             self.md += f"| {attr} | {value} |"
 
@@ -136,38 +135,80 @@ class ConfigurationFormatter:
     def __init__(self, conf: VscConfiguration):
         self.conf = conf
 
-    def render_toc(self) -> str:
+    def render_toc_header(self) -> str:
         self.md = MdBuffer()
-        self.make_toc_section()
+        self.make_toc_section_header()
         return "\n".join(self.md.buffer)
 
-    def render_content(self) -> str:
+    def render_toc_body(self) -> str:
         self.md = MdBuffer()
-        self.make_content_section()
+        self.make_toc_section_body()
+        return "\n".join(self.md.buffer)
+
+    def render_content_header(self) -> str:
+        self.md = MdBuffer()
+        self.make_content_section_header()
+        return "\n".join(self.md.buffer)
+
+    def render_content_body(self) -> str:
+        self.md = MdBuffer()
+        self.make_content_section_body()
         return "\n".join(self.md.buffer)
 
     # TOC section
-    def make_toc_section(self):
+    def make_toc_section_header(self):
         if self.conf.title is not None:
             link = self.conf.title.replace(".", "_")
             link = f"configuration_{link}"
-            self.md += f"### [configuration {self.conf.title}](#{link})"
+            self.md += f"### [{self.conf.title}](#{link})"
+        else:
+            link = "configuration_untitled"
+            self.md += f"### [untitled configuration](#{link})"
+
+    # TOC section
+    def make_toc_section_body(self):
         for prop in self.conf.properties_named:
             link = prop.name.replace(".", "_")
             link = link.lower()
             self.md += f"* [{prop.name}](#{link})"
 
-        self.md += "\n"
+    # Content section
+    def make_content_section_header(self):
+        if self.conf.title is not None:
+            link = self.conf.title.replace(".", "_")
+            link = f"configuration_{link}"
+            self.md += f"## [{self.conf.title}](#{link}) {{#{link}}}"
+        else:
+            link = "configuration_untitled"
+            self.md += f"## [untitled configuration](#{link}) {{#{link}}}"
 
     # Content section
-    def make_content_section(self):
+    def make_content_section_body(self):
         for name, prop in self.conf.properties.items():
             id = name.replace(".", "_")
             id = id.lower()
-            self.md += f"## [{name}](#{id}) {{#{id}}}"
+            self.md += f"### [{name}](#{id}) {{#{id}}}"
             prop_fmt = PropertyFormatter(prop)
             self.md += prop_fmt.render()
             self.md += ""
+
+
+# with the special $untitled key for configurations without a title
+def group_configurations_by_title(
+    configurations: list[VscConfiguration],
+) -> dict[str, VscConfiguration]:
+    grouped = {}
+    untitled = "$untitled"
+    for conf in configurations:
+        if conf.title is None:
+            if untitled not in grouped:
+                grouped[untitled] = []
+            grouped[untitled].append(conf)
+        else:
+            if conf.title not in grouped:
+                grouped[conf.title] = []
+            grouped[conf.title].append(conf)
+    return grouped
 
 
 class MdFormatter:
@@ -185,150 +226,59 @@ class MdFormatter:
         self.md += "## TOC\n"
 
     def make_document(self):
-        conf_formatters = [
-            ConfigurationFormatter(conf) for conf in self.ext.contributes.configuration
-        ]
+        configurations = group_configurations_by_title(
+            self.ext.contributes.configuration
+        )
+        conf_content_formatters = {}
+        untitled_confs = []
+        if "$untitled" in configurations:
+            untitled_confs = configurations.pop("$untitled")
 
-        for conf_fmt in conf_formatters:
-            self.md += conf_fmt.render_toc()
+        # TOC
+        for title, confs in configurations.items():
+            conf_formatters = [ConfigurationFormatter(conf) for conf in confs]
 
-        for conf_fmt in conf_formatters:
-            self.md += conf_fmt.render_content()
+            self.md += conf_formatters[0].render_toc_header()
+            for conf_fmt in conf_formatters:
+                self.md += conf_fmt.render_toc_body()
+            self.md += ""
 
+            conf_content_formatters[title] = conf_formatters
 
-def run(package_json: str):
-    with open(package_json) as f:
-        data = dict(json.load(f))
-    data = data["contributes"]["configuration"]["properties"]
-    if "$generated-start" in data:
-        data.pop("$generated-start")
-    if "$generated-end" in data:
-        data.pop("$generated-end")
+        # Untitled TOC will be placed at the end
+        if len(untitled_confs) > 0:
+            untitled_fmts = [ConfigurationFormatter(conf) for conf in untitled_confs]
+            self.md += untitled_fmts[0].render_toc_header()
+            for conf_fmt in untitled_fmts:
+                self.md += conf_fmt.render_toc_body()
+            self.md += ""
 
-    return data
+        # Content
+        for title, conf_fmts in conf_content_formatters.items():
+            self.md += conf_fmts[0].render_content_header()
+            for conf_fmt in conf_fmts:
+                self.md += conf_fmt.render_content_body()
 
-
-def render_desc(key, o) -> str:
-    out = ""
-
-    if key in o:
-        desc = str(o.pop(key))
-        out += f"{desc}\n\n"
-
-    return out
-
-
-def render_enum_desc(key, o) -> str:
-    out = ""
-
-    e = "enum"
-    if e in o and key in o:
-        out += "### possible values\n"
-        out += "| value | description |\n"
-        out += "| :-- | :---  |\n"
-
-        for a, b in zip(o.pop(e), o.pop(key)):
-            out += f"| *{a}* | {b} |\n"
-
-    return out
+        # Untitled Content will be placed at the end to
+        if len(untitled_confs) > 0:
+            self.md += untitled_fmts[0].render_content_header()
+            for conf_fmt in untitled_fmts:
+                self.md += conf_fmt.render_content_body()
 
 
-def render_option(o: dict) -> str:
-    # print(option)
-    out = ""
-
-    # Head
-    ty = "type"
-    if ty in o:
-        out += f"**{ty}:** `{o.pop(ty)}`</br>\n"
-
-    de = "default"
-    if de in o:
-        default = o.pop(de)
-        if default.__class__ is dict and len(default.keys()) > 0:
-            default = json.dumps(default, indent=2)
-            out += f"**{de}:**\n```json\n"
-            out += f"{default}\n"
-            out += "```\n\n"
-        else:
-            out += f"**{de}:** `{default}`</br>\n"
-
-    mi = "minimum"
-    if mi in o:
-        out += f"**{mi}:** `{o.pop(mi)}`</br>\n"
-
-    ma = "maximum"
-    if ma in o:
-        out += f"**{ma}:** `{o.pop(ma)}`</br>\n"
-
-    an = "anyOf"
-    if an in o:
-        out += f"**{an}:**\n```\n"
-        for v in o.pop(an):
-            out += f"{v}\n"
-        out += "```\n"
-
-    # Body
-    mdd = "markdownDescription"
-    d = "description"
-    out += render_desc(mdd, o)
-    out += render_desc(d, o)
-
-    ed = "enumDescriptions"
-    mded = "markdownEnumDescriptions"
-    out += render_enum_desc(ed, o)
-    out += render_enum_desc(mded, o)
-
-    # remaining keys
-    if len(o.keys()) == 0:
-        return out
-
-    out += "\n\n"
-    out += "| key | value |\n"
-    out += "| :-- | :---  |\n"
-
-    for k in o.keys():
-        out += f"| {k} | {o[k]} |\n"
-    # if option.get('description') is not None:
-    # out += str(option['description']) + "\n"
-
-    return out
-
-
-def make_markdown(opts) -> str:
-    md = "# Rust Analyzer Options\n\n"
-    md += "## TOC\n\n"
-
-    # TOC
-    for k in opts.keys():
-        link = k.replace(".", "_")
-        link = link.lower()
-        md += f"* [{k}](#{link})\n"
-
-    md += "\n"
-
-    # Content
-    for k, v in opts.items():
-        id = k.replace(".", "_")
-        id = id.lower()
-        md += f"## [{k}](#{id}) {{#{id}}}\n"
-        md += render_option(v)
-        md += "\n"
-
-    return md
-
-
-def render_with_classes(package_json: str) -> str:
-    from vscode_extension import VscExtensionManifest
-
+def render_package_json_to_markdown(package_json: str) -> str:
     with open(package_json) as f:
         data = dict(json.load(f))
     vsc_ext = VscExtensionManifest.from_dict(data)
     fmt = MdFormatter(vsc_ext)
     md = fmt.render()
     return md
-    # print(vsc_ext.contributes.configuration[0].properties_named[0].name)
-    # print(md)
+
+
+def write_markdown_to_file(rendered_md, file):
+    with open(file, "w") as f:
+        f.write(rendered_md)
+        f.flush()
 
 
 if __name__ == "__main__":
@@ -353,16 +303,5 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    md = render_with_classes(args.package_json)
-    with open(args.rendered_md, "w") as f:
-        f.write(md)
-        f.flush()
-
-    import sys
-    sys.exit(0)
-
-    opts = run(args.package_json)
-    md = make_markdown(opts)
-    with open(args.rendered_md, "w") as f:
-        f.write(md)
-        f.flush()
+    rendered_md = render_package_json_to_markdown(args.package_json)
+    write_markdown_to_file(rendered_md, args.rendered_md)
