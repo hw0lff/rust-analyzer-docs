@@ -55,15 +55,8 @@ build_docs_single() {
     pandoc "${pandoc_opts[@]}" "${pandoc_page_opts[@]}"
 }
 
-build_docs_all() {
-    mkdir -p "$build"
-    mkdir -p "$out"
-    clone_ra
-    cd "$ra"
+gather_package_json() {
     local pids=()
-
-    generate_index
-
     echo "[$(date +%FT%T)] Gathering package.json"
     for tag in $(git tag); do
         mkdir -p "$build/$tag"
@@ -71,7 +64,9 @@ build_docs_all() {
         pids+=("$!")
     done
     wait "${pids[@]}"
+}
 
+generate_markdown() {
     local pids=()
     echo "[$(date +%FT%T)] Generating markdown"
     for tag in $(git tag); do
@@ -79,7 +74,9 @@ build_docs_all() {
         pids+=("$!")
     done
     wait "${pids[@]}"
+}
 
+render_html() {
     local pids=()
     echo "[$(date +%FT%T)] Rendering HTML"
     for tag in $(git tag); do
@@ -98,6 +95,21 @@ build_docs_all() {
     pids+=("$!")
 
     wait "${pids[@]}"
+}
+build_docs_all() {
+    mkdir -p "$build"
+    mkdir -p "$out"
+    clone_ra
+    cd "$ra"
+
+    generate_index
+
+    gather_package_json
+
+    generate_markdown
+
+    render_html
+
     echo "[$(date +%FT%T)] All finished"
 }
 
