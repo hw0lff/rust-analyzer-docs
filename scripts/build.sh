@@ -70,7 +70,7 @@ generate_markdown() {
     local pids=()
     echo "[$(date +%FT%T)] Generating markdown"
     for tag in $(git tag); do
-        "$scripts/build-markdown.py" "$build/$tag/package.json" "$build/$tag/rendered.md" &
+        "$scripts/md_formatter.py" "$build/$tag/package.json" "$build/$tag/rendered.md" &
         pids+=("$!")
     done
     wait "${pids[@]}"
