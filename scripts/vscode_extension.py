@@ -135,6 +135,13 @@ class VscConfiguration:
         return VscConfiguration(properties, properties_named, id, order, title)
 
 
+def conf_is_not_generated(conf: dict) -> bool:
+    if conf.get("title") is not None:
+        return not conf.get("title").startswith("$generated")
+    else:
+        return True
+
+
 @dataclass
 class VscExtensionContributions:
     # configuration: VscConfiguration | [VscConfiguration]
@@ -147,9 +154,9 @@ class VscExtensionContributions:
         # make it always into a list
         if not isinstance(configuration, list):
             configuration = [configuration]
-        configuration = filter(
-            lambda conf: not conf.get("title").startswith("$generated"), configuration
-        )
+        # remove configurations that are generated
+        configuration = filter(conf_is_not_generated, configuration)
+        # remove configurations that have no properties
         configuration = filter(
             lambda conf: conf.get("properties") is not None, configuration
         )
