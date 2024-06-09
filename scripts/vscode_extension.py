@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import inspect
 
 
 JSONSchemaType = dict | str | list | int | bool
@@ -94,9 +95,12 @@ class VscConfigurationProperty:
     # my own findings
     scope: None | str = None
 
-    @staticmethod
-    def from_dict(data: dict) -> "VscConfigurationProperty":
-        return VscConfigurationProperty(**data)
+    @classmethod
+    def from_dict(cls, data: dict) -> "VscConfigurationProperty":
+        prop = cls()
+        for k, v in data.items():
+            setattr(prop, k, v)
+        return prop
 
 
 @dataclass
@@ -113,8 +117,8 @@ class VscConfiguration:
     order: int | None
     title: str | None
 
-    @staticmethod
-    def from_dict(data: dict) -> "VscConfiguration":
+    @classmethod
+    def from_dict(cls, data: dict) -> "VscConfiguration":
         id = data.get("id")
         order = data.get("order")
         title = data.get("title")
@@ -132,7 +136,7 @@ class VscConfiguration:
             VscConfigurationPropertyNamed(name, prop)
             for name, prop in properties.items()
         ]
-        return VscConfiguration(properties, properties_named, id, order, title)
+        return cls(properties, properties_named, id, order, title)
 
 
 def conf_is_not_generated(conf: dict) -> bool:
@@ -148,8 +152,8 @@ class VscExtensionContributions:
     configuration: list[VscConfiguration]
     rest: dict | None
 
-    @staticmethod
-    def from_dict(data: dict) -> "VscExtensionContributions":
+    @classmethod
+    def from_dict(cls, data: dict) -> "VscExtensionContributions":
         configuration = data.pop("configuration")
         # make it always into a list
         if not isinstance(configuration, list):
@@ -161,7 +165,7 @@ class VscExtensionContributions:
             lambda conf: conf.get("properties") is not None, configuration
         )
         configuration = [VscConfiguration.from_dict(conf) for conf in configuration]
-        return VscExtensionContributions(configuration, data)
+        return cls(configuration, data)
 
 
 @dataclass
@@ -170,10 +174,10 @@ class VscExtensionManifest:
     contributes: VscExtensionContributions
     rest: dict | None
 
-    @staticmethod
-    def from_dict(data: dict) -> "VscExtensionManifest":
+    @classmethod
+    def from_dict(cls, data: dict) -> "VscExtensionManifest":
         # contributes = data["contributes"]["configuration"]["properties"]
         name = data.pop("name")
         contributes = data.pop("contributes")
         contributes = VscExtensionContributions.from_dict(contributes)
-        return VscExtensionManifest(name, contributes, data)
+        return cls(name, contributes, data)
