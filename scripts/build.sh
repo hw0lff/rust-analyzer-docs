@@ -34,6 +34,27 @@ generate_index() {
     tac "$build/index.rev.md" >> "$build/index.md"
 }
 
+build_docs_single() {
+    local release_date="$1"
+    local input_package_json="$2"
+    local output_html="$3"
+
+    local build_single
+    build_single="$build/single-$(date +%FT%T)"
+    mkdir -p "$build_single"
+    mkdir -p "$(dirname "$output_html")"
+    local rendered_md="$build_single/rendered.md"
+
+    "$scripts/md_formatter.py" "$input_package_json" "$rendered_md"
+
+    local pandoc_page_opts=(
+        -V "date=$release_date"
+        "$rendered_md"
+        -o "$output_html"
+    )
+    pandoc "${pandoc_opts[@]}" "${pandoc_page_opts[@]}"
+}
+
 build_docs_all() {
     mkdir -p "$build"
     mkdir -p "$out"
@@ -85,6 +106,8 @@ usage() {
 Usage:
     all   - build docs for all tags
     clean - remove all build artifacts
+    single <release date> <input package.json path> <output html path>
+          - build a single package.json
 EOF
 }
 
@@ -97,6 +120,16 @@ if [[ $# -eq 1 ]]; then
         clean)
             rm -rf "$out"
             rm -rf "$build"
+            exit 0;;
+        *)
+            usage
+            exit 1;;
+    esac
+elif [[ $# -eq 4 ]]; then
+    case $1 in
+        single)
+            shift
+            build_docs_single "$@"
             exit 0;;
         *)
             usage
