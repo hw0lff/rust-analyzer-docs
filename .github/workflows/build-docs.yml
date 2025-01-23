@@ -12,12 +12,12 @@ jobs:
   build_docs:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - uses: nikeee/setup-pandoc@v1
       - name: Build rust_analyzer html docs
         run: RUNNER_TRACKING_ID="" && ./scripts/build.sh all
       - name: Upload html docs artifact
-        uses: actions/upload-pages-artifact@v1
+        uses: actions/upload-pages-artifact@v3
         with:
           path: out
 
@@ -37,4 +37,4 @@ jobs:
     steps:
       - name: Deploy rust_analyzer html docs to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
+        uses: actions/deploy-pages@v4
