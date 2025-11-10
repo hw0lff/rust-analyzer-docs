@@ -1,4 +1,4 @@
-name: 'Automations for reference documentation of rust_analyzer configuration options'
+name: 'Build reference documentation of rust_analyzer configuration options from package.json'
 on:
   workflow_dispatch:
   schedule:
