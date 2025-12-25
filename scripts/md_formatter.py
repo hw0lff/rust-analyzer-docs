@@ -131,6 +131,12 @@ class PropertyFormatter:
             self.md += f"| {attr} | {value} |"
 
 
+def encode_link(link: str, prefix: str = "") -> str:
+    link = link.replace('.', '_').replace(' ', '_')
+    link = f"{prefix}{link}"
+    return link.lower()
+
+
 class ConfigurationFormatter:
     def __init__(self, conf: VscConfiguration):
         self.conf = conf
@@ -158,35 +164,31 @@ class ConfigurationFormatter:
     # TOC section
     def make_toc_section_header(self):
         if self.conf.title is not None:
-            link = self.conf.title.replace(".", "_")
-            link = f"configuration_{link}"
+            link = encode_link(self.conf.title, "configuration_")
             self.md += f"### [{self.conf.title}](#{link})"
         else:
-            link = "configuration_untitled"
+            link = encode_link("untitled", "configuration_")
             self.md += f"### [untitled configuration](#{link})"
 
     # TOC section
     def make_toc_section_body(self):
         for prop in self.conf.properties_named:
-            link = prop.name.replace(".", "_")
-            link = link.lower()
+            link = encode_link(prop.name)
             self.md += f"* [{prop.name}](#{link})"
 
     # Content section
     def make_content_section_header(self):
         if self.conf.title is not None:
-            link = self.conf.title.replace(".", "_")
-            link = f"configuration_{link}"
+            link = encode_link(self.conf.title, "configuration_")
             self.md += f"## [{self.conf.title}](#{link}) {{#{link}}}"
         else:
-            link = "configuration_untitled"
+            link = encode_link("untitled", "configuration_")
             self.md += f"## [untitled configuration](#{link}) {{#{link}}}"
 
     # Content section
     def make_content_section_body(self):
         for name, prop in self.conf.properties.items():
-            id = name.replace(".", "_")
-            id = id.lower()
+            id = encode_link(name)
             self.md += f"### [{name}](#{id}) {{#{id}}}"
             prop_fmt = PropertyFormatter(prop)
             self.md += prop_fmt.render()
